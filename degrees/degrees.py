@@ -17,7 +17,7 @@ def load_data(directory):
     """
     Load data from CSV files into memory.
     """
-    # Load people
+    # Load information from people.csv
     with open(f"{directory}/people.csv", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
@@ -31,7 +31,7 @@ def load_data(directory):
             else:
                 names[row["name"].lower()].add(row["id"])
 
-    # Load movies
+    # Load movie information from movies.csv
     with open(f"{directory}/movies.csv", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
@@ -62,26 +62,33 @@ def main():
     load_data(directory)
     print("Data loaded.")
 
+    # Fetch the person id for the source name entered.
     source = person_id_for_name(input("Name: "))
     if source is None:
         sys.exit("Person not found.")
+
+    # Fetch the person id for the target name entered.
     target = person_id_for_name(input("Name: "))
     if target is None:
         sys.exit("Person not found.")
 
+    # Finds the connection between both the stars.
     path = shortest_path(source, target)
 
     if path is None:
+        # If the stars have no connection path will be None
         print("Not connected.")
     else:
+        # The degrees of separation is found and displayed.
         degrees = len(path)
         print(f"{degrees} degrees of separation.")
-        path = [(None, source)] + path
-        for i in range(degrees):
-            person1 = people[path[i][1]]["name"]
-            person2 = people[path[i + 1][1]]["name"]
-            movie = movies[path[i + 1][0]]["title"]
-            print(f"{i + 1}: {person1} and {person2} starred in {movie}")
+        if degrees > 0:
+            path = [(None, source)] + path
+            for i in range(degrees):
+                person1 = people[path[i][1]]["name"]
+                person2 = people[path[i + 1][1]]["name"]
+                movie = movies[path[i + 1][0]]["title"]
+                print(f"{i + 1}: {person1} and {person2} starred in {movie}")
 
 
 def shortest_path(source, target):
@@ -100,30 +107,44 @@ def shortest_path(source, target):
     queue.add(start)
 
     actions, cells = [], []
+    # If the source and target stars are the same, the path is empty.
+    if source == target:
+        return []
 
+    # As long as the connection between stars are not found and
+    # We start with the source id to find the connection.
     while not queue.empty() and not stars_connected:
         node = queue.remove()
 
         if not explored_sets.contains_state(node.state):
+            # Explored sets keeps track of all the person's we have explored.
             explored_sets.add(node)
 
+            # Here we explore all the co-stars, movies the person has acted in.
             for movie_id, person_id in neighbors_for_person(node.state):
                 child = Node(state=person_id, parent=node, action=movie_id)
                 if child.state == target:
+                    # If one of the co-stars are the target, we have found the connection.
                     stars_connected = True
                     break
+                # If the co-star is not the target, we add them to the queue to check for
+                # next degree of connection.
                 queue.add(child)
 
         if stars_connected:
+            # If we did find the connection, then we have to return the movie and the person id
             solution = [(child.action, child.state)]
             parent = child.parent
-            #Reversing
+
+            # Since we traversed into the target connection,
+            # The path has to be reversed to show the connection from the source to the target.
             while parent.action:
                 solution.insert(0, (parent.action, parent.state))
                 parent = parent.parent
             return solution
 
     return None
+
 
 def person_id_for_name(name):
     """
